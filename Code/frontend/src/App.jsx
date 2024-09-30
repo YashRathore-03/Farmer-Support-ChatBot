@@ -141,7 +141,7 @@ const App = () => {
         </div>
 
         <div className="flex flex-col items-center font-bebas mt-2 text-lg lg:text-2xl">
-          <h2>Farmer Support Chatbot</h2>
+          <h2>IntelliV ChatBot</h2>
         </div>
         <center>
         <div className="flex items-center justify-between  w-full px-4 mt-4">

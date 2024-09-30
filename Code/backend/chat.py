@@ -6,17 +6,32 @@ import pickle
 import numpy as np
 import json
 import random
+
+import eventlet
+import eventlet.wsgi
+
 from nltk.stem import WordNetLemmatizer
-from keras.models import load_model
+from tensorflow.keras.models import load_model
+
 from googletrans import Translator  # Import Translator from googletrans module
 from flask import Flask
 from flask_socketio import SocketIO, emit
 
+# Download necessary NLTK data
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('punkt_tab')
+
+# Initializing Lemmatizer, loading model, intents, words, and classes
 lemma = WordNetLemmatizer()
-model = load_model('model.h5')
-intents = json.loads(open('intents.json').read())
-words = pickle.load(open('word.pkl','rb'))
-classes = pickle.load(open('class.pkl','rb'))
+
+try:
+    model = load_model('model.h5')
+    intents = json.loads(open('intents.json').read())
+    words = pickle.load(open('word.pkl', 'rb'))
+    classes = pickle.load(open('class.pkl', 'rb'))
+except Exception as e:
+    print(f"Error loading files: {e}")
 
 # Function to clean up the sentence
 def clean_up_sentence(sentence):
@@ -56,9 +71,13 @@ def getResponse(ints, intents_json):
 
 # Function to translate messages
 def translate_message(message, source_language, target_language='en'):
-    translator = Translator()
-    translated_message = translator.translate(message, src=source_language, dest=target_language).text
-    return translated_message
+    try:
+        translator = Translator()
+        translated_message = translator.translate(message, src=source_language, dest=target_language).text
+        return translated_message
+    except Exception as e:
+        print(f"Translation error: {e}")
+        return message
 
 # Function to get the chatbot response 
 def chatbotResponse(msg, source_language):
@@ -73,15 +92,19 @@ def chatbotResponse(msg, source_language):
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 app.static_folder = 'static'
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 
 # Creating the socket connection
 @socketio.on('message')
 def handle_message(data):
-    source_language = data['language']
-    response = chatbotResponse(data['message'], source_language)
-    print(response)
-    emit('recv_message', response)
+    try:
+        source_language = data.get('language', 'en')  # Default to English if language not specified
+        response = chatbotResponse(data['message'], source_language)
+        print(response)
+        emit('recv_message', response)
+    except Exception as e:
+        print(f"Error processing message: {e}")
+        emit('recv_message', "Sorry, an error occurred!")
 
 # Running the app
 if __name__ == "__main__":
